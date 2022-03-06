@@ -59,6 +59,36 @@ class Sphere(Entity):
         
         return 0
 
+app = Ursina()
+
+# DEFAULT RADIUS (SIDE LENGTH) IS AN OUTER SHAPE OF 10MM AND THEN AN INNER SHAPE OF 7.5MM
+radius_multiplier = randint(1, 5)
+
+# Random position is based on the radius subtract the scale_x and scale_y, this essentially ensures that the inner or outer radii spawn outside the boundary of the box.
+spherical_box = Entity(model = "circle.obj", color = color.pink, scale = (5, 5, 5), position = (randint(-50, 50), 75, randint(-50, 50)), rotation_x = 90, collider = "box")
+cuboidal_box = Entity(model = "square.obj", color = color.azure, scale = (5, 5, 5), position = (randint(-50, 50), 75, randint(-50, 50)), rotation_x = 90, collider = "box")
+
+spheres = []
+box_count = 0
+circle_count = 0
+
+ground = Entity(model = "cube", scale = (200, 50, 200), position = (0, 0, 0), color = color.white,  collider = "box")
+
+
+def update():
+    if spherical_box.intersects(cuboidal_box):
+        cuboidal_box.world_position = (randint(-50, 50), 75, randint(-50, 50))
+
+    for index, sphere in enumerate(spheres):
+        if sphere.intersects(cuboidal_box):
+            destroy(sphere)
+            spheres.pop(index)
+            box_count += 1
+        elif sphere.intersects(spherical_box):
+            destroy(sphere)
+            spheres.pop(index)
+            box_count += 1
+
 
 def input(key):
     if key == "r":
@@ -75,11 +105,6 @@ def input(key):
         # accounted for.).
         new_sphere.animate_y(-1 * (new_sphere.get_position(relative_to = ground)[1] - ground.world_scale_y) - new_sphere.world_scale_y, duration = new_sphere.get_bounce_time(), curve = curve.out_bounce)
 
-app = Ursina()
-
-spheres = []
-
-ground = Entity(model = "cube", scale = (200, 50, 200), position = (0, 0, 0), color = color.white,  collider = "box")
 
 EditorCamera()
 app.run()
