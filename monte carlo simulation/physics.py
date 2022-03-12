@@ -3,12 +3,14 @@ from random import randint
 from math import pi, sqrt
 
 class Sphere(Entity):
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.time = 0
         self.constant_of_restituion = 0.7
         self.air_mass_density = 1.125
         self.bouncing = False
+        self.counted = False
         
         self.max_height = abs((self.world_position[1] + self.world_scale_y / 2) - abs(ground.world_scale_y / 2 + ground.world_position[1]))
         self.mass = self.world_scale_z ** 3 * 4/3 * pi 
@@ -61,12 +63,14 @@ class Sphere(Entity):
 
 app = Ursina()
 
-# DEFAULT RADIUS (SIDE LENGTH) IS AN OUTER SHAPE OF 10MM AND THEN AN INNER SHAPE OF 7.5MM
-radius_multiplier = randint(1, 5)
+# DEFAULT RADIUS (SIDE LENGTH) IS AN OUTER SHAPE OF 10MM AND THEN AN INNER SHAPE OF 7.5MM AND HEIGHT OF 10MM
+height = 10
+inner_radius = 7.5
+outer_radius = 10
 
 # Random position is based on the radius subtract the scale_x and scale_y, this essentially ensures that the inner or outer radii spawn outside the boundary of the box.
-cuboidal_box = Entity(model = "square.obj", color = color.azure, scale = (5, 5, 5), position = (randint(-50, 50), 75, randint(-50, 50)), rotation_x = 90, collider = "box")
-cylindrical_box = Entity(model = "circle.obj", color = color.pink, scale = (5, 5, 5), position = (randint(-50, 50), 75, randint(-50, 50)), rotation_x = 90, collider = "box")
+cuboidal_box = Entity(model = "square.obj", color = color.azure, scale = (5, 5, 5), position = (randint(-50, 50), 75, randint(-50, 50)), rotation_x = 90, collider = "mesh")
+cylindrical_box = Entity(model = "circle.obj", color = color.pink, scale = (5, 5, 5), position = (randint(-50, 50), 75, randint(-50, 50)), rotation_x = 90, collider = "mesh")
 
 cuboid_count = Text("Cube: 0", position = (-.5, -.375), background = True, color = color.azure)
 cylinder_count = Text("Cylinder: 0", position = (.5, -.375), background = True, color = color.pink)
@@ -74,22 +78,23 @@ cylinder_count = Text("Cylinder: 0", position = (.5, -.375), background = True, 
 spheres = []
 ground = Entity(model = "cube", scale = (200, 50, 200), position = (0, 0, 0), color = color.white,  collider = "box")
 
-
 def update():
     global cuboid_count, cylinder_count
-    if cylindrical_box.intersects(cuboidal_box):
+
+    if (cylindrical_box.world_position[0] <= cuboidal_box.world_position[0] + inner_radius * cuboidal_box.scale_x <= cylindrical_box.world_position[0] + cylindrical_box.scale_y * inner_radius) or (cylindrical_box.world_position[2] <= cuboidal_box.world_position[2] + inner_radius * cuboidal_box.world_scale_z <= cylindrical_box.world_position[2] + cylindrical_box.scale_y * inner_radius):
         cuboidal_box.world_position = (randint(-50, 50), 75, randint(-50, 50))
 
+    # Checking for any entries within the boxes by ensuring it's within the origin of the cylinder + the scale_x * original radius
     for index, sphere in enumerate(spheres):
-        if sphere.intersects(cuboidal_box):
-            destroy(sphere)
-            spheres.pop(index)
-            cuboid_count.text = f'Cube: {str(int("".join(cuboid_count.text.split(":")).split(" ")[-1]) + 1)}'
-        elif sphere.intersects(cylindrical_box):
-            destroy(sphere)
-            spheres.pop(index)
-            cylinder_count.text = f'Cylinder: {str(int("".join(cylinder_count.text.split(":")).split(" ")[-1]) + 1)}'
-
+        # Checking that the sphere is below the height of any arbitary box (assuming cylinder and cuboid have same height)
+        if not(sphere.counted) and sphere.world_position[1] <= cylindrical_box.world_position[1] * cylindrical_box.world_scale_y:
+            # If a sphere is inside the x axis, or if it is inside the z axis, indexxing a world_position of (x, y, z)
+            if (cuboidal_box.world_position[0] <= sphere.world_position[0] + sphere.world_scale_y <= cuboidal_box.world_position[0] + inner_radius * cuboidal_box.world_scale_x) and (cuboidal_box.world_position[2] <= sphere.world_position[2] + sphere.world_scale_z <= cuboidal_box.world_position[2] + inner_radius * cuboidal_box.world_scale_z):
+                sphere.counted = True
+                cuboid_count.text = f'Cube: {str(int("".join(cuboid_count.text.split(":")).split(" ")[-1]) + 1)}'
+            elif (cylindrical_box.world_position[0] <= sphere.world_position[0] + sphere.world_scale_y <= cylindrical_box.world_position[0] + inner_radius * cylindrical_box.world_scale_x) and (cylindrical_box.world_position[2] <= sphere.world_position[2] + sphere.world_scale_z <= cylindrical_box.world_position[2] + inner_radius * cylindrical_box.world_scale_z):
+                sphere.counted = True
+                cylinder_count.text = f'Cylinder: {str(int("".join(cylinder_count.text.split(":")).split(" ")[-1]) + 1)}'
 
 def input(key):
     if key == "r":
@@ -102,10 +107,15 @@ def input(key):
         new_sphere = Sphere(model = "sphere", scale = (10, 10, 10), color = color.orange, position = (randint(-100, 100), randint(200, 700), randint(-100, 100)), collider = "sphere")
         spheres.append(new_sphere)
 
-        # Animating with a distance of the relative position subtract the scale (because the scale explodes from the origin of (0, 0, 0) and therefore must be
-        # accounted for.).
-        new_sphere.animate_y(-1 * (new_sphere.get_position(relative_to = ground)[1] - ground.world_scale_y) - new_sphere.world_scale_y, duration = new_sphere.get_bounce_time(), curve = curve.out_bounce)
-
+        # Checking if a sphere is inside the distance between the inner radius and the outer radius to calculate animation in both axes. (ASSUMING EQUAL SCALING)
+        if (cylindrical_box.world_position[0] + inner_radius * cylindrical_box.world_scale_x < new_sphere.world_position[0] < cylindrical_box.world_position[0] + outer_radius * cylindrical_box.world_scale_x) or (cylindrical_box.world_position[2] + inner_radius * cylindrical_box.world_scale_z < new_sphere.world_position[2] < cylindrical_box.world_position[2] + outer_radius * cylindrical_box.world_scale_z):
+            new_sphere.animate_y(-1 * height - new_sphere.scale_y, duration = new_sphere.get_bounce_time(), curve = curve.out_bounce)
+        elif (cuboidal_box.world_position[0] + inner_radius * cuboidal_box.world_scale_x < new_sphere.world_position[0] < cuboidal_box.world_position[0] + outer_radius * cuboidal_box.world_scale_x) or (cuboidal_box.world_position[2] + inner_radius * cuboidal_box.world_scale_z < new_sphere.world_position[2] + new_sphere.world_scale_y < cuboidal_box.world_position[2] + outer_radius * cuboidal_box.world_scale_z):
+            new_sphere.animate_y(-1 * height - new_sphere.scale_y, duration = new_sphere.get_bounce_time(), curve = curve.out_bounce)
+        else:
+            # Animating with a distance of the relative position subtract the scale (because the scale explodes from the origin of (0, 0, 0) and therefore must be
+            # accounted for.). 
+            new_sphere.animate_y(-1 * (new_sphere.get_position(relative_to = ground)[1] - ground.world_scale_y) - new_sphere.world_scale_y, duration = new_sphere.get_bounce_time(), curve = curve.out_bounce)
 
 EditorCamera()
 app.run()
