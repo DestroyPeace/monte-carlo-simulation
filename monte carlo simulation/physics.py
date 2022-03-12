@@ -65,29 +65,30 @@ app = Ursina()
 radius_multiplier = randint(1, 5)
 
 # Random position is based on the radius subtract the scale_x and scale_y, this essentially ensures that the inner or outer radii spawn outside the boundary of the box.
-spherical_box = Entity(model = "circle.obj", color = color.pink, scale = (5, 5, 5), position = (randint(-50, 50), 75, randint(-50, 50)), rotation_x = 90, collider = "box")
 cuboidal_box = Entity(model = "square.obj", color = color.azure, scale = (5, 5, 5), position = (randint(-50, 50), 75, randint(-50, 50)), rotation_x = 90, collider = "box")
+cylindrical_box = Entity(model = "circle.obj", color = color.pink, scale = (5, 5, 5), position = (randint(-50, 50), 75, randint(-50, 50)), rotation_x = 90, collider = "box")
+
+cuboid_count = Text("Cube: 0", position = (-.5, -.375), background = True, color = color.azure)
+cylinder_count = Text("Cylinder: 0", position = (.5, -.375), background = True, color = color.pink)
 
 spheres = []
-box_count = 0
-circle_count = 0
-
 ground = Entity(model = "cube", scale = (200, 50, 200), position = (0, 0, 0), color = color.white,  collider = "box")
 
 
 def update():
-    if spherical_box.intersects(cuboidal_box):
+    global cuboid_count, cylinder_count
+    if cylindrical_box.intersects(cuboidal_box):
         cuboidal_box.world_position = (randint(-50, 50), 75, randint(-50, 50))
 
     for index, sphere in enumerate(spheres):
         if sphere.intersects(cuboidal_box):
             destroy(sphere)
             spheres.pop(index)
-            box_count += 1
-        elif sphere.intersects(spherical_box):
+            cuboid_count.text = f'Cube: {str(int("".join(cuboid_count.text.split(":")).split(" ")[-1]) + 1)}'
+        elif sphere.intersects(cylindrical_box):
             destroy(sphere)
             spheres.pop(index)
-            box_count += 1
+            cylinder_count.text = f'Cylinder: {str(int("".join(cylinder_count.text.split(":")).split(" ")[-1]) + 1)}'
 
 
 def input(key):
